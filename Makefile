@@ -3,7 +3,7 @@ CXXFLAGS := -Wall -Wextra -Werror -pedantic -std=c++20 -fopenmp
 RELEASEFLAGS := -O3
 
 # List of source files
-SRCS := main.cc io.cc
+SRCS := io.cc simulate.cc
 HEADERS := io.h collision.h sim_validator.h
 
 # Object files
@@ -14,7 +14,7 @@ OBJS := $(SRCS:.cc=.o)
 all: release
 
 # List of executables (actual binary names)
-EXECUTABLES := sim 
+EXECUTABLES := sim
 PERF_EXECUTABLES := $(EXECUTABLES:%=%.perf)
 
 TARGETS := $(EXECUTABLES) 
@@ -29,9 +29,9 @@ release: $(TARGETS) $(PERF_TARGETS)
 	$(CXX) $(CXXFLAGS) -DCHECK=0 $(RELEASEFLAGS) -c $< -o $@
 
 # How to compile non-perf and perf executables
-$(EXECUTABLES): %: %.o io.o sim_validator.a
+$(EXECUTABLES): %: %.o io.o sim_validator.a simulate.o
 	$(CXX) $(CXXFLAGS) -DCHECK=1 $(RELEASEFLAGS) -o $@ $^
-$(PERF_EXECUTABLES): %.perf: %.o.perf io.o
+$(PERF_EXECUTABLES): %.perf: %.o.perf io.o simulate.o
 	$(CXX) $(CXXFLAGS) -DCHECK=0 $(RELEASEFLAGS) -o $@ $^
 
 clean:
