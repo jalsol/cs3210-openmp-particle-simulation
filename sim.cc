@@ -1,12 +1,15 @@
 #include <omp.h>
 
 #include <cmath>
+#include <iostream>
 #include <vector>
 
 #include "io.h"
 #include "sim_validator.h"
 
-void simulate_step(const Params& params, std::vector<Particle>& particles);
+void init(int square_size);
+
+void simulate_step(std::vector<Particle>& particles, int square_size, int radius);
 
 int main(const int argc, char* argv[]) {
     Params params{};
@@ -21,8 +24,9 @@ int main(const int argc, char* argv[]) {
     // validator.enable_viz_output("test.out");
 #endif
 
-    for (auto _ = 0; _ < params.param_steps; ++_) {
-        simulate_step(params, particles);
+    init(params.square_size);
+    for (auto step = 0; step < params.param_steps; ++step) {
+        simulate_step(particles, params.square_size, params.param_radius);
 #if CHECK == 1
         validator.validate_step(particles);
 #endif

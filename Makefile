@@ -1,6 +1,6 @@
 CXX := g++
 CXXFLAGS := -Wall -Wextra -Werror -pedantic -std=c++20 -fopenmp
-RELEASEFLAGS := -O3
+RELEASEFLAGS := -g
 
 # List of source files
 SRCS := io.cc simulate.cc
