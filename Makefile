@@ -1,10 +1,10 @@
 CXX := g++
-CXXFLAGS := -Wall -Wextra -Werror -pedantic -std=c++20 -fopenmp
-RELEASEFLAGS := -g
+CXXFLAGS := -Wall -Wextra -fopenmp -pedantic -std=c++20
+RELEASEFLAGS := -O3
 
 # List of source files
 SRCS := io.cc simulate.cc
-HEADERS := io.h collision.h sim_validator.h
+HEADERS := io.h collision.h sim_validator.h vector.h
 
 # Object files
 OBJS := $(SRCS:.cc=.o)
