@@ -82,7 +82,7 @@ void simulate_step(std::vector<Particle>& particles, int square_size, int radius
 
 bool simulate_substep(std::vector<Particle>& particles, int square_size, int radius) {
     using std::views::iota;
-    bool has_updates = false;
+    bool has_collisions[BIN_SIZE * BIN_SIZE]{};
 
     #pragma omp parallel for
     for (const auto bin_x : iota(0, BIN_SIZE)) {
@@ -104,9 +104,7 @@ bool simulate_substep(std::vector<Particle>& particles, int square_size, int rad
 
                             if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
                                 resolve_particle_collision(loc1, vel1, loc2, vel2);
-
-                                #pragma omp atomic write
-                                has_updates = true;
+                                has_collisions[bin_x * BIN_SIZE + bin_y] = true;
                             }
                         }
                     }
@@ -120,10 +118,10 @@ bool simulate_substep(std::vector<Particle>& particles, int square_size, int rad
         if (is_wall_collision(loc, vel, square_size, radius)) {
             resolve_wall_collision(loc, vel, square_size, radius);
 
-            #pragma omp atomic write
-            has_updates = true;
+            #pragma omp critical
+            has_collisions[0] = true;
         }
     }
 
-    return has_updates;
+    return std::any_of(has_collisions, has_collisions + BIN_SIZE * BIN_SIZE, [](const bool x) { return x; });
 }
