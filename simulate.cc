@@ -7,7 +7,7 @@
 
 namespace {
 
-constexpr int BIN_SIZE = 4;
+constexpr int BIN_SIZE = 16;
 Vector bins[BIN_SIZE][BIN_SIZE];
 Vector temps[BIN_SIZE][BIN_SIZE];
 int bin_length;
