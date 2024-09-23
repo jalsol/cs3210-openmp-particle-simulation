@@ -7,7 +7,7 @@
 #include "io.h"
 #include "sim_validator.h"
 
-void init(int square_size, const std::vector<Particle>& particles);
+void init(const Params& params, const std::vector<Particle>& particles);
 
 void simulate_step(std::vector<Particle>& particles, int square_size, int radius);
 
@@ -24,7 +24,7 @@ int main(const int argc, char* argv[]) {
     // validator.enable_viz_output("test.out");
 #endif
 
-    init(params.square_size, particles);
+    init(params, particles);
     for (auto step = 0; step < params.param_steps; ++step) {
         simulate_step(particles, params.square_size, params.param_radius);
 #if CHECK == 1

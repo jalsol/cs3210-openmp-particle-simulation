@@ -4,7 +4,7 @@ RELEASEFLAGS := -O3
 
 # List of source files
 SRCS := io.cc simulate.cc
-HEADERS := io.h collision.h sim_validator.h vector.h
+HEADERS := io.h collision.h sim_validator.h
 
 # Object files
 OBJS := $(SRCS:.cc=.o)

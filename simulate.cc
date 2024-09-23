@@ -1,39 +1,32 @@
 #include "io.h"
 #include "collision.h"
-#include "vector.h"
 
+#include <cmath>
+#include <vector>
 #include <ranges>
-#include <algorithm>
 
-namespace {
+int bin_num;
+std::vector<std::vector<int>> bins;
 
-constexpr int BIN_SIZE = 32;
-Vector bins[BIN_SIZE][BIN_SIZE];
-Vector temps[BIN_SIZE][BIN_SIZE];
-int bin_length;
+int f(const int x, const int y) { return x * bin_num + y; }
 
-} // namespace
-
-bool simulate_substep(std::vector<Particle>& particles, int square_size, int radius);
-
-void init(int square_size, const std::vector<Particle>& particles) {
-    using std::views::iota;
-    bin_length = square_size / BIN_SIZE + 1;
-
-    #pragma omp parallel for
-    for (const auto& [i, loc, vel] : particles) {
-        const auto bin_x = static_cast<int>(loc.x / bin_length);
-        const auto bin_y = static_cast<int>(loc.y / bin_length);
-
-        #pragma omp critical
-        bins[bin_x][bin_y].push_back(i);
-    }
+void push_to_bin(const Vec2 loc, const int i) {
+    const int x = static_cast<int>(loc.x / bin_num);
+    const int y = static_cast<int>(loc.y / bin_num);
+    bins[f(x, y)].push_back(i);
 }
 
-void simulate_step(std::vector<Particle>& particles, int square_size, int radius) {
+void init(const Params& params, const std::vector<Particle>& particles) {
+    const double bin_height = std::sqrt(params.param_radius);
+    bin_num = static_cast<int>(params.square_size / bin_height) + 1;
+
+    bins.resize(bin_num * bin_num);
+}
+
+void simulate_step(std::vector<Particle>& particles, const int square_size, const int radius) {
     using std::views::iota;
 
-    #pragma omp parallel for
+    // move particles
     for (auto& [i, loc, vel] : particles) {
         loc.x += vel.x;
         loc.y += vel.y;
@@ -41,87 +34,47 @@ void simulate_step(std::vector<Particle>& particles, int square_size, int radius
 
     bool has_updates;
     do {
-        has_updates = simulate_substep(particles, square_size, radius);
+        has_updates = false;
 
-        #pragma omp for
-        for (const auto bin_x : iota(0, BIN_SIZE)) {
-            for (const auto bin_y : iota(0, BIN_SIZE)) {
-                auto& bin = bins[bin_x][bin_y];
-                auto& temp = temps[bin_x][bin_y];
+        for (const auto& [i, loc, _] : particles) {
+            push_to_bin(loc, i);
+        }
 
-                auto&& predicate = [&](const auto i) {
-                    const auto& [_, loc, vel] = particles[i];
-                    const auto next_bin_x = static_cast<int>(loc.x / bin_length);
-                    const auto next_bin_y = static_cast<int>(loc.y / bin_length);
-                    return bin_x == next_bin_x && bin_y == next_bin_y;
-                };
-
-                const auto it = std::partition(bin.begin(), bin.end(), predicate);
-                for (auto p = it; p != bin.end(); ++p) {
-                    temp.push_back(*p);
-                }
-                bin.size = std::distance(bin.begin(), it);
+        for (auto& [i, loc, vel] : particles) {
+            if (is_wall_collision(loc, vel, square_size, radius)) {
+                resolve_wall_collision(loc, vel, square_size, radius);
+                has_updates = true;
             }
         }
 
-        #pragma omp for
-        for (const auto bin_x : iota(0, BIN_SIZE)) {
-            for (const auto bin_y : iota(0, BIN_SIZE)) {
-                auto& temp = temps[bin_x][bin_y];
-                for (const auto i : temp) {
-                    auto& [_, loc, vel] = particles[i];
-                    const auto next_bin_x = static_cast<int>(loc.x / bin_length);
-                    const auto next_bin_y = static_cast<int>(loc.y / bin_length);
-                    bins[next_bin_x][next_bin_y].push_back(i);
-                }
-                temp.size = 0;
-            }
-        }
-    } while (has_updates);
-}
+        // resolve particle-particle
+        for (const int x : iota(0, bin_num)) {
+            for (const int y : iota(0, bin_num)) {
+                auto& bin = bins[f(x, y)];
 
-bool simulate_substep(std::vector<Particle>& particles, int square_size, int radius) {
-    using std::views::iota;
-    bool has_collisions[BIN_SIZE * BIN_SIZE]{};
+                for (const int nx : iota(x - 1, x + 2)) {
+                    if (nx < 0 || bin_num <= nx) continue;
+                    for (const int ny : iota(y - 1, y + 2)) {
+                        if (ny < 0 || bin_num <= ny) continue;
 
-    #pragma omp parallel for
-    for (const auto bin_x : iota(0, BIN_SIZE)) {
-        for (const auto bin_y : iota(0, BIN_SIZE)) {
-            auto& bin = bins[bin_x][bin_y];
+                        auto& other = bins[f(nx, ny)];
 
-            for (const auto dx : iota(-1, 2)) {
-                if (bin_x + dx < 0 || BIN_SIZE <= bin_x + dx) continue;
+                        for (const auto bi : bin) {
+                            auto& [i, loc1, vel1] = particles[bi];
+                            for (const auto bj : other) {
+                                auto& [j, loc2, vel2] = particles[bj];
 
-                for (const auto dy : iota(-1, 2)) {
-                    if (bin_y + dy < 0 || BIN_SIZE <= bin_y + dy) continue;
-
-                    auto& other = bins[bin_x + dx][bin_y + dy];
-
-                    for (const auto bi : bin) {
-                        auto& [i, loc1, vel1] = particles[bi];
-                        for (const auto bj : other) {
-                            auto& [j, loc2, vel2] = particles[bj];
-
-                            if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
-                                resolve_particle_collision(loc1, vel1, loc2, vel2);
-                                has_collisions[bin_x * BIN_SIZE + bin_y] = true;
+                                if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
+                                    resolve_particle_collision(loc1, vel1, loc2, vel2);
+                                    has_updates = true;
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
 
-    #pragma omp parallel for
-    for (auto& [i, loc, vel] : particles) {
-        if (is_wall_collision(loc, vel, square_size, radius)) {
-            resolve_wall_collision(loc, vel, square_size, radius);
-
-            #pragma omp critical
-            has_collisions[0] = true;
-        }
-    }
-
-    return std::any_of(has_collisions, has_collisions + BIN_SIZE * BIN_SIZE, [](const bool x) { return x; });
+        for (auto& bin : bins) bin.clear();
+    } while (has_updates);
 }
