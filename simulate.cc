@@ -18,7 +18,7 @@ void push_to_bin(const Vec2 loc, const int i) {
 }
 
 void init(const Params& params, const std::vector<Particle>& particles) {
-    const double bin_height = std::sqrt(params.param_radius);
+    const double bin_height = std::sqrt(2) * params.param_radius;
     bin_num = static_cast<int>(params.square_size / bin_height) + 1;
 
     bins.resize(bin_num * bin_num);
