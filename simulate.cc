@@ -13,6 +13,7 @@ int f(const int x, const int y) { return x * bin_num + y; }
 void push_to_bin(const Vec2 loc, const int i) {
     const int x = static_cast<int>(loc.x / bin_num);
     const int y = static_cast<int>(loc.y / bin_num);
+#pragma omp critical
     bins[f(x, y)].push_back(i);
 }
 
@@ -27,6 +28,7 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
     using std::views::iota;
 
     // move particles
+#pragma omp parallel for
     for (auto& [i, loc, vel] : particles) {
         loc.x += vel.x;
         loc.y += vel.y;
@@ -36,18 +38,22 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
     do {
         has_updates = false;
 
+#pragma omp parallel for
         for (const auto& [i, loc, _] : particles) {
             push_to_bin(loc, i);
         }
 
+#pragma omp parallel for
         for (auto& [i, loc, vel] : particles) {
             if (is_wall_collision(loc, vel, square_size, radius)) {
                 resolve_wall_collision(loc, vel, square_size, radius);
+#pragma omp atomic write
                 has_updates = true;
             }
         }
 
         // resolve particle-particle
+#pragma omp parallel for
         for (const int x : iota(0, bin_num)) {
             for (const int y : iota(0, bin_num)) {
                 auto& bin = bins[f(x, y)];
@@ -66,6 +72,7 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
 
                                 if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
                                     resolve_particle_collision(loc1, vel1, loc2, vel2);
+#pragma omp atomic write
                                     has_updates = true;
                                 }
                             }
@@ -75,6 +82,7 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
             }
         }
 
+#pragma omp parallel for
         for (auto& bin : bins) bin.clear();
     } while (has_updates);
 }
