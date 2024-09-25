@@ -23,7 +23,7 @@ KdNode* build(
     const auto mid = std::midpoint(left_range, right_range);
     std::span span(indices.begin() + left_range, indices.begin() + right_range);
 
-    std::ranges::sort(span, [&](const int i, const int j) {
+    std::ranges::nth_element(span, span.begin() + mid, [&](const int i, const int j) {
         if (depth % MOD == HORIZONTAL) {
             return particles[i].loc.x < particles[j].loc.x;
         } else {
@@ -52,26 +52,26 @@ std::vector<int> search(
     const Vec2 split_loc = particles[node->split].loc;
     std::vector<int> ret;
 
-    if (sq_dist(loc, split_loc) <= scan_length * scan_length) {
+    if (sq_dist(loc, split_loc) < scan_length * scan_length) {
         ret.push_back(node->split);
     }
 
     if (depth % MOD == HORIZONTAL) {
         if (loc.x - scan_length < split_loc.x) {
-            const std::vector<int> subret = search(loc, node->left, particles, scan_length, depth + 1);
+            const std::vector subret = search(loc, node->left, particles, scan_length, depth + 1);
             std::ranges::copy(subret, std::back_inserter(ret));
         }
         if (loc.x + scan_length > split_loc.x) {
-            const std::vector<int> subret = search(loc, node->right, particles, scan_length, depth + 1);
+            const std::vector subret = search(loc, node->right, particles, scan_length, depth + 1);
             std::ranges::copy(subret, std::back_inserter(ret));
         }
     } else {
         if (loc.y - scan_length < split_loc.y) {
-            const std::vector<int> subret = search(loc, node->left, particles, scan_length, depth + 1);
+            const std::vector subret = search(loc, node->left, particles, scan_length, depth + 1);
             std::ranges::copy(subret, std::back_inserter(ret));
         }
         if (loc.y + scan_length > split_loc.y) {
-            const std::vector<int> subret = search(loc, node->right, particles, scan_length, depth + 1);
+            const std::vector subret = search(loc, node->right, particles, scan_length, depth + 1);
             std::ranges::copy(subret, std::back_inserter(ret));
         }
     }
