@@ -4,7 +4,7 @@ RELEASEFLAGS := -O3
 
 # List of source files
 SRCS := io.cc simulate.cc
-HEADERS := io.h collision.h sim_validator.h
+HEADERS := io.h collision.h sim_validator.h kdtree.h
 
 # Object files
 OBJS := $(SRCS:.cc=.o)
@@ -29,9 +29,9 @@ release: $(TARGETS) $(PERF_TARGETS)
 	$(CXX) $(CXXFLAGS) -DCHECK=0 $(RELEASEFLAGS) -c $< -o $@
 
 # How to compile non-perf and perf executables
-$(EXECUTABLES): %: %.o io.o sim_validator.a simulate.o
+$(EXECUTABLES): %: %.o io.o sim_validator.a simulate.o kdtree.o
 	$(CXX) $(CXXFLAGS) -DCHECK=1 $(RELEASEFLAGS) -o $@ $^
-$(PERF_EXECUTABLES): %.perf: %.o.perf io.o simulate.o
+$(PERF_EXECUTABLES): %.perf: %.o.perf io.o simulate.o kdtree.o
 	$(CXX) $(CXXFLAGS) -DCHECK=0 $(RELEASEFLAGS) -o $@ $^
 
 clean:

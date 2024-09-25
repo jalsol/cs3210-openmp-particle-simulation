@@ -105,6 +105,19 @@
     <clangFormatSettings>
       <option name="ENABLED" value="true" />
     </clangFormatSettings>
+    <files>
+      <extensions>
+        <pair source="cc" header="h" fileNamingConvention="LOWERCASE" />
+        <pair source="c" header="h" fileNamingConvention="NONE" />
+        <pair source="cu" header="cuh" fileNamingConvention="NONE" />
+        <pair source="ixx" header="" fileNamingConvention="NONE" />
+        <pair source="mxx" header="" fileNamingConvention="NONE" />
+        <pair source="cppm" header="" fileNamingConvention="NONE" />
+        <pair source="ccm" header="" fileNamingConvention="NONE" />
+        <pair source="cxxm" header="" fileNamingConvention="NONE" />
+        <pair source="c++m" header="" fileNamingConvention="NONE" />
+      </extensions>
+    </files>
     <codeStyleSettings language="XML">
       <option name="FORCE_REARRANGE_MODE" value="1" />
       <indentOptions>

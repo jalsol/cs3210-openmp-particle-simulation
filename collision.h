@@ -85,6 +85,12 @@ inline void resolve_wall_collision(Vec2 loc, Vec2& vel, int square_size, int rad
     }
 }
 
+inline double sq_dist(Vec2 loc1, Vec2 loc2) {
+    double dx = loc2.x - loc1.x;
+    double dy = loc2.y - loc1.y;
+    return dx * dx + dy * dy;
+}
+
 /**
  * Whether two particles are overlapping
  * - loc1: The location of the first particle
@@ -92,10 +98,7 @@ inline void resolve_wall_collision(Vec2 loc, Vec2& vel, int square_size, int rad
  * - radius: The radius of the particles
  */
 inline bool is_particle_overlap(Vec2 loc1, Vec2 loc2, int radius) {
-    double dx = loc2.x - loc1.x;
-    double dy = loc2.y - loc1.y;
-    double sq_distance = dx * dx + dy * dy;
-    return sq_distance <= (radius * 2) * (radius * 2);
+    return sq_dist(loc1, loc2) <= (radius * 2) * (radius * 2);
 }
 
 /**

@@ -1,88 +1,58 @@
 #include "io.h"
 #include "collision.h"
+#include "kdtree.h"
 
-#include <cmath>
 #include <vector>
 #include <ranges>
+#include <numeric>
 
-int bin_num;
-std::vector<std::vector<int>> bins;
+std::vector<int> indices;
 
-int f(const int x, const int y) { return x * bin_num + y; }
-
-void push_to_bin(const Vec2 loc, const int i) {
-    const int x = static_cast<int>(loc.x / bin_num);
-    const int y = static_cast<int>(loc.y / bin_num);
-#pragma omp critical
-    bins[f(x, y)].push_back(i);
-}
-
-void init(const Params& params, const std::vector<Particle>& particles) {
-    const double bin_height = std::sqrt(2) * params.param_radius;
-    bin_num = static_cast<int>(params.square_size / bin_height) + 1;
-
-    bins.resize(bin_num * bin_num);
+void init(const Params& params) {
+    indices.resize(params.param_particles);
+    std::iota(indices.begin(), indices.end(), 0);
 }
 
 void simulate_step(std::vector<Particle>& particles, const int square_size, const int radius) {
     using std::views::iota;
 
     // move particles
-#pragma omp parallel for
     for (auto& [i, loc, vel] : particles) {
         loc.x += vel.x;
         loc.y += vel.y;
     }
 
     bool has_updates;
+
     do {
         has_updates = false;
+        const KdNode* root = build(particles, indices);
 
-#pragma omp parallel for
-        for (const auto& [i, loc, _] : particles) {
-            push_to_bin(loc, i);
-        }
+        std::vector<std::vector<int>> neighbors;
 
-#pragma omp parallel for
         for (auto& [i, loc, vel] : particles) {
-            if (is_wall_collision(loc, vel, square_size, radius)) {
-                resolve_wall_collision(loc, vel, square_size, radius);
-#pragma omp atomic write
-                has_updates = true;
-            }
+            neighbors.push_back(search(loc, root, particles, 2 * radius));
         }
 
-        // resolve particle-particle
-#pragma omp parallel for
-        for (const int x : iota(0, bin_num)) {
-            for (const int y : iota(0, bin_num)) {
-                auto& bin = bins[f(x, y)];
+        for (int i = 0; i < particles.size(); ++i) {
+            auto& [_, loc1, vel1] = particles[i];
+            for (const auto bj : neighbors[i]) {
+                auto& [j, loc2, vel2] = particles[bj];
 
-                for (const int nx : iota(x - 1, x + 2)) {
-                    if (nx < 0 || bin_num <= nx) continue;
-                    for (const int ny : iota(y - 1, y + 2)) {
-                        if (ny < 0 || bin_num <= ny) continue;
-
-                        auto& other = bins[f(nx, ny)];
-
-                        for (const auto bi : bin) {
-                            auto& [i, loc1, vel1] = particles[bi];
-                            for (const auto bj : other) {
-                                auto& [j, loc2, vel2] = particles[bj];
-
-                                if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
-                                    resolve_particle_collision(loc1, vel1, loc2, vel2);
-#pragma omp atomic write
-                                    has_updates = true;
-                                }
-                            }
-                        }
-                    }
+                if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
+                    resolve_particle_collision(loc1, vel1, loc2, vel2);
+                    has_updates = true;
                 }
             }
         }
 
-#pragma omp parallel for
-        for (auto& bin : bins) bin.clear();
+        for (auto& [i, loc, vel] : particles) {
+            if (is_wall_collision(loc, vel, square_size, radius)) {
+                resolve_wall_collision(loc, vel, square_size, radius);
+                has_updates = true;
+            }
+        }
+
+        delete root;
     } while (has_updates);
 }
