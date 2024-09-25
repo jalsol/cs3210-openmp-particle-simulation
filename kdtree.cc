@@ -4,22 +4,26 @@
 
 #include <ranges>
 #include <algorithm>
+#include <numeric>
 
 KdNode* build(
     const std::vector<Particle>& particles,
-    std::vector<int> indices,
+    std::vector<int>& indices,
+    const int left_range,
+    const int right_range,
     const int depth
 ) {
-    if (indices.empty()) {
+    if (indices.empty() || left_range >= right_range) {
         return nullptr;
     }
     if (indices.size() == 1) {
         return new KdNode(indices[0]);
     }
 
-    const auto mid = indices.size() / 2;
+    const auto mid = std::midpoint(left_range, right_range);
+    std::span span(indices.begin() + left_range, indices.begin() + right_range);
 
-    std::ranges::sort(indices, [&](const int i, const int j) {
+    std::ranges::sort(span, [&](const int i, const int j) {
         if (depth % MOD == HORIZONTAL) {
             return particles[i].loc.x < particles[j].loc.x;
         } else {
@@ -27,13 +31,10 @@ KdNode* build(
         }
     });
 
-    const std::vector left_indices(indices.begin(), indices.begin() + mid);
-    const std::vector right_indices(indices.begin() + std::min(mid + 1, indices.size()), indices.end());
-
     const auto ret = new KdNode(
         indices[mid],
-        build(particles, left_indices, depth + 1),
-        build(particles, right_indices, depth + 1)
+        build(particles, indices, left_range, mid, depth + 1),
+        build(particles, indices, mid + 1, right_range, depth + 1)
     );
 
     return ret;

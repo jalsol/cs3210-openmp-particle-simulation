@@ -2,7 +2,7 @@
 
 #include "io.h"
 
-constexpr int MOD = 2;
+constexpr int MOD = 16;
 
 enum { HORIZONTAL, VERTICAL };
 
@@ -19,8 +19,10 @@ struct KdNode {
 
 KdNode* build(
     const std::vector<Particle>& particles,
-    std::vector<int> indices,
-    int depth = 0
+    std::vector<int>& indices,
+    int left_range,
+    int right_range,
+    int depth
 );
 
 std::vector<int> search(

@@ -7,16 +7,18 @@
 #include <numeric>
 
 std::vector<int> indices;
+std::vector<std::vector<int>> neighbors;
 
 void init(const Params& params) {
     indices.resize(params.param_particles);
+    neighbors.resize(params.param_particles);
     std::iota(indices.begin(), indices.end(), 0);
 }
 
 void simulate_step(std::vector<Particle>& particles, const int square_size, const int radius) {
     using std::views::iota;
 
-    // move particles
+#pragma omp parallel for
     for (auto& [i, loc, vel] : particles) {
         loc.x += vel.x;
         loc.y += vel.y;
@@ -26,20 +28,18 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
 
     do {
         has_updates = false;
-        const KdNode* root = build(particles, indices);
+        const KdNode* root = build(particles, indices, 0, particles.size(), 0);
 
-        std::vector<std::vector<int>> neighbors;
-
+#pragma omp parallel for
         for (auto& [i, loc, vel] : particles) {
-            neighbors.push_back(search(loc, root, particles, 2 * radius));
+            neighbors[i] = search(loc, root, particles, 2 * radius);
         }
 
-        for (int i = 0; i < particles.size(); ++i) {
-            auto& [_, loc1, vel1] = particles[i];
+        for (auto& [i, loc1, vel1] : particles) {
             for (const auto bj : neighbors[i]) {
                 auto& [j, loc2, vel2] = particles[bj];
 
-                if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
+                if (i < j && is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
                     resolve_particle_collision(loc1, vel1, loc2, vel2);
                     has_updates = true;
                 }
