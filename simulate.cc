@@ -15,6 +15,7 @@ int slice_count;
 int slice_size;
 int last_cell;
 std::vector<std::vector<int>> bins;
+std::vector<bool> affected;
 
 int f(const int x, const int y) { return x * bin_num + y; }
 
@@ -28,6 +29,7 @@ void init(const Params& params) {
     bin_height = 2 * params.param_radius;
     bin_num = static_cast<int>(2 * params.square_size / bin_height) + 1;
     bins.resize(bin_num * bin_num);
+    affected.resize(params.param_particles);
     num_threads = params.param_threads;
 
     radius = params.param_radius;
@@ -40,13 +42,16 @@ void init(const Params& params) {
 bool resolve_collision_threaded(std::vector<Particle>& particles, int start, int end);
 
 void simulate_step(std::vector<Particle>& particles) {
+    bool has_updates;
+
+    std::fill(affected.begin(), affected.end(), true);
+
     #pragma omp parallel for
     for (auto& [i, loc, vel] : particles) {
         loc.x += vel.x;
         loc.y += vel.y;
     }
 
-    bool has_updates;
     do {
         has_updates = false;
 
@@ -97,6 +102,7 @@ void simulate_step(std::vector<Particle>& particles) {
         for (auto& [i, loc, vel] : particles) {
             if (is_wall_collision(loc, vel, square_size, radius)) {
                 resolve_wall_collision(loc, vel, square_size, radius);
+                affected[i] = true;
                 has_updates = true;
             }
         }
@@ -121,12 +127,16 @@ bool resolve_collision_threaded(std::vector<Particle>& particles, const int star
                     auto& other = bins[f(nx, ny)];
 
                     for (const auto bi : bin) {
+                        auto& [i, loc1, vel1] = particles[bi];
                         for (const auto bj : other) {
-                            auto& [i, loc1, vel1] = particles[bi];
                             auto& [j, loc2, vel2] = particles[bj];
+                            if (i < j) continue;
+                            if (!affected[i] && !affected[j]) continue;
 
-                            if (i < j && is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
+                            if (is_particle_collision(loc1, vel1, loc2, vel2, radius)) {
                                 resolve_particle_collision(loc1, vel1, loc2, vel2);
+                                affected[i] = true;
+                                affected[j] = true;
                                 local_updates = true;
                             }
                         }
