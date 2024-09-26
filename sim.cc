@@ -9,7 +9,7 @@
 
 void init(const Params& params);
 
-void simulate_step(std::vector<Particle>& particles, int square_size, int radius);
+void simulate_step(std::vector<Particle>& particles);
 
 int main(const int argc, char* argv[]) {
     Params params{};
@@ -26,7 +26,7 @@ int main(const int argc, char* argv[]) {
 
     init(params);
     for (auto step = 0; step < params.param_steps; ++step) {
-        simulate_step(particles, params.square_size, params.param_radius);
+        simulate_step(particles);
 #if CHECK == 1
         validator.validate_step(particles);
 #endif

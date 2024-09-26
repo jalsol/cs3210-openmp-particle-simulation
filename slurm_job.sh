@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --mem=4gb
-#SBATCH --partition=i7-7700
+#SBATCH --partition=xs-4114
 #SBATCH --time=00:10:00
 #SBATCH --output=%x_%j.slurmlog
 #SBATCH --error=%x_%j.slurmlog

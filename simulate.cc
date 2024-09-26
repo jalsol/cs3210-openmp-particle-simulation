@@ -1,6 +1,3 @@
-#include <iostream>
-
-
 #include "io.h"
 #include "collision.h"
 
@@ -12,35 +9,42 @@ using std::views::iota;
 int bin_num;
 int num_threads;
 double bin_height;
+int radius;
+int square_size;
+int slice_count;
+int slice_size;
+int last_cell;
 std::vector<std::vector<int>> bins;
 
 int f(const int x, const int y) { return x * bin_num + y; }
 
 void push_to_bin(const Vec2 loc, const int i) {
-    const int x = static_cast<int>(loc.x / bin_height);
-    const int y = static_cast<int>(loc.y / bin_height);
+    const int x = static_cast<int>((loc.x + square_size / 2) / bin_height);
+    const int y = static_cast<int>((loc.y + square_size / 2) / bin_height);
     bins[f(x, y)].push_back(i);
 }
 
 void init(const Params& params) {
     bin_height = 2 * params.param_radius;
-    bin_num = static_cast<int>(params.square_size / bin_height) + 1;
+    bin_num = static_cast<int>(2 * params.square_size / bin_height) + 1;
     bins.resize(bin_num * bin_num);
     num_threads = params.param_threads;
+
+    radius = params.param_radius;
+    square_size = params.square_size;
+    slice_count = 2 * num_threads;
+    slice_size = bin_num / slice_count;
+    last_cell = 2 * num_threads * slice_size;
 }
 
-bool resolve_collision_threaded(std::vector<Particle>& particles, int start, int end, int radius);
+bool resolve_collision_threaded(std::vector<Particle>& particles, int start, int end);
 
-void simulate_step(std::vector<Particle>& particles, const int square_size, const int radius) {
-#pragma omp parallel for
+void simulate_step(std::vector<Particle>& particles) {
+    #pragma omp parallel for
     for (auto& [i, loc, vel] : particles) {
         loc.x += vel.x;
         loc.y += vel.y;
     }
-
-    const int slice_count = 2 * num_threads;
-    const int slice_size = bin_num / slice_count;
-    const int last_cell = 2 * num_threads * slice_size;
 
     bool has_updates;
     do {
@@ -61,12 +65,12 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
                     const int end = start + slice_size;
 
                     #pragma omp task in_reduction(|:has_updates)
-                    has_updates |= resolve_collision_threaded(particles, start, end, radius);
+                    has_updates |= resolve_collision_threaded(particles, start, end);
                 }
 
                 if (last_cell < square_size) {
                     #pragma omp task in_reduction(|:has_updates)
-                    has_updates |= resolve_collision_threaded(particles, last_cell, bin_num, radius);
+                    has_updates |= resolve_collision_threaded(particles, last_cell, bin_num);
                 }
             }
         }
@@ -83,7 +87,7 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
                     const int end = start + slice_size;
 
                     #pragma omp task in_reduction(|:has_updates)
-                    has_updates |= resolve_collision_threaded(particles, start, end, radius);
+                    has_updates |= resolve_collision_threaded(particles, start, end);
                 }
             }
         }
@@ -103,7 +107,7 @@ void simulate_step(std::vector<Particle>& particles, const int square_size, cons
     } while (has_updates);
 }
 
-bool resolve_collision_threaded(std::vector<Particle>& particles, const int start, const int end, const int radius) {
+bool resolve_collision_threaded(std::vector<Particle>& particles, const int start, const int end) {
     bool local_updates = false;
 
     for (const int x : iota(start, end)) {
